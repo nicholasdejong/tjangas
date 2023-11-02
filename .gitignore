@@ -1,0 +1,4 @@
+/target
+Cargo.lock
+# yes i use vscode fight me
+.vscode
