@@ -14,8 +14,11 @@ impl BitBoard {
     }
 
     pub fn display(&self) -> String {
-        // format!("BitBoard({})", self.0)
-        format!("0x{:x}", self.0)
+        if self.is_empty() {
+            String::from("0")
+        } else {
+            format!("0x{:x}", self.0)
+        }
     }
 }
 
