@@ -1,4 +1,3 @@
-// use lazy_static::lazy_static;
 use crate::{bitboard::BitBoard, square::Square};
 
 const NOT_H: u64 = 0x7f7f7f7f7f7f7f7f;
@@ -7,11 +6,6 @@ const NOT_EDGE: u64 = 0x7e7e7e7e7e7e00;
 
 pub const BISHOP_BLOCKERS: [BitBoard; Square::NUM] = populate_bishop_blockers();
 pub const ROOK_BLOCKERS: [BitBoard; Square::NUM] = populate_rook_blockers();
-
-// lazy_static! {
-//     pub static ref BISHOP_MOVES = bishop_moves();
-//     pub static ref ROOK_MOVES = rook_moves();
-// }
 
 const fn sout_attacks(mut pieces: u64, empty: u64, end: usize) -> u64 {
     let mut i = 0;
