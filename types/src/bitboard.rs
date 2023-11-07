@@ -1,5 +1,4 @@
-
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Default)]
 pub struct BitBoard(pub u64);
 
 impl BitBoard {

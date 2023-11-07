@@ -1,5 +1,10 @@
 use std::{env, fs, path::Path};
-use types::{square::Square, slider::Slider, bitboard::BitBoard, sliders::{magic::*, common::*}};
+use types::{
+    bitboard::BitBoard,
+    slider::Slider,
+    sliders::{common::*, magic::*},
+    square::Square,
+};
 
 fn populate_table() -> [BitBoard; TABLE_SIZE] {
     let mut table = [BitBoard::EMPTY; TABLE_SIZE];
@@ -22,16 +27,19 @@ fn populate_table() -> [BitBoard; TABLE_SIZE] {
     table
 }
 
-
 fn main() {
     let out_dir = env::var_os("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("slider_moves.rs");
 
     fs::write(
         &dest_path,
-        format!("pub const fn get_table() -> [u64; {TABLE_SIZE}] {{ {:?} }}
-        ", populate_table())
-    ).unwrap();
+        format!(
+            "pub const fn get_table() -> [u64; {TABLE_SIZE}] {{ {:?} }}
+        ",
+            populate_table()
+        ),
+    )
+    .unwrap();
 
     println!("cargo:rerun-if-changed=build.rs");
 }

@@ -1,7 +1,8 @@
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Color {
+    #[default]
     White,
-    Black
+    Black,
 }
 
 impl std::ops::Not for Color {
@@ -9,7 +10,20 @@ impl std::ops::Not for Color {
     fn not(self) -> Self::Output {
         match self {
             Self::White => Self::Black,
-            Self::Black => Self::White
+            Self::Black => Self::White,
+        }
+    }
+}
+
+pub struct ColorParseError;
+
+impl std::str::FromStr for Color {
+    type Err = ColorParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "w" | "W" | "White" | "white" | "WHITE" => Ok(Color::White),
+            "b" | "B" | "Black" | "black" | "BLACK" => Ok(Color::Black),
+            _ => Err(ColorParseError)
         }
     }
 }

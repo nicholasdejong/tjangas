@@ -1,4 +1,6 @@
 use types::sliders::common::TABLE_SIZE;
+mod board;
+
 
 include!(concat!(env!("OUT_DIR"), "/slider_moves.rs"));
 

@@ -110,10 +110,12 @@ const fn populate_rook_blockers() -> [BitBoard; Square::NUM] {
     let mut i = 0;
     let mut blockers = [BitBoard::EMPTY; Square::NUM];
     while i < Square::NUM {
-        blockers[i] = BitBoard((0xffffffffffffff & nort_attacks(1 << i, !0, 5))
-            | (0xffffffffffffff00 & sout_attacks(1 << i, !0, 5))
-            | (0xfefefefefefefefe & west_attacks(1 << i, !0, 5))
-            | (0x7f7f7f7f7f7f7f7f & east_attacks(1 << i, !0, 5)));
+        blockers[i] = BitBoard(
+            (0xffffffffffffff & nort_attacks(1 << i, !0, 5))
+                | (0xffffffffffffff00 & sout_attacks(1 << i, !0, 5))
+                | (0xfefefefefefefefe & west_attacks(1 << i, !0, 5))
+                | (0x7f7f7f7f7f7f7f7f & east_attacks(1 << i, !0, 5)),
+        );
         i += 1;
     }
     blockers
