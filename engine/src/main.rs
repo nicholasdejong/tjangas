@@ -1,9 +1,5 @@
-use types::sliders::common::TABLE_SIZE;
 mod board;
+mod moves;
 
-
-include!(concat!(env!("OUT_DIR"), "/slider_moves.rs"));
-
-pub const TABLE: [u64; TABLE_SIZE] = get_table();
 
 fn main() {}

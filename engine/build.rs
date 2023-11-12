@@ -12,7 +12,7 @@ fn populate_table() -> [BitBoard; TABLE_SIZE] {
     for sq in 0..Square::NUM {
         let blockers = Slider::Bishop.blockers(Square(sq));
         for subset in subsets(blockers) {
-            let idx = magic_index(subset, BISHOP_MAGICS[sq], 55) + BISHOP_OFFSETS[sq];
+            let idx = magic_index(subset, BISHOP_MAGICS[sq], BISHOP_SHIFT) + BISHOP_OFFSETS[sq];
             table[idx] = Slider::Bishop.pseudo_moves(Square(sq), subset);
         }
     }
@@ -20,7 +20,7 @@ fn populate_table() -> [BitBoard; TABLE_SIZE] {
     for sq in 0..Square::NUM {
         let blockers = Slider::Rook.blockers(Square(sq));
         for subset in subsets(blockers) {
-            let idx = magic_index(subset, ROOK_MAGICS[sq], 52) + ROOK_OFFSETS[sq];
+            let idx = magic_index(subset, ROOK_MAGICS[sq], ROOK_SHIFT) + ROOK_OFFSETS[sq];
             table[idx] = Slider::Rook.pseudo_moves(Square(sq), subset);
         }
     }
