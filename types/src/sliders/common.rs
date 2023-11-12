@@ -1,5 +1,8 @@
 use crate::square::Square;
 
+pub const BISHOP_SHIFT: usize = 64 - 9;
+pub const ROOK_SHIFT: usize = 64 - 12;
+
 pub const BISHOP_BLOCKERS: [u64; Square::NUM] = [
     0x40201008040200,
     0x402010080400,
