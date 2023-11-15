@@ -4,3 +4,8 @@ members = [
     "types"
 ]
 resolver = "2"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+debug = 1

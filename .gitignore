@@ -1,6 +1,7 @@
 /target
 Cargo.lock
 perf.data
+perf.data.old
 # yes i use vscode fight me
 .vscode
 temp_code.md
