@@ -24,8 +24,8 @@ impl Slider {
     /// Pseudo-legal move generation using dumb7fill
     pub const fn pseudo_moves(&self, sq: Square, blockers: BitBoard) -> BitBoard {
         match self {
-            Self::Bishop => BitBoard(bishop_moves(sq.0, blockers.0)),
-            Self::Rook => BitBoard(rook_moves(sq.0, blockers.0)),
+            Self::Bishop => BitBoard(bishop_moves(1 << sq.0, blockers.0)),
+            Self::Rook => BitBoard(rook_moves(1 << sq.0, blockers.0)),
         }
     }
 

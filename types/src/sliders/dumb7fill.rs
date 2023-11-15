@@ -78,18 +78,16 @@ const fn sowe_attacks(mut pieces: u64, mut empty: u64) -> u64 {
     (pieces >> 9) & NOT_H
 }
 
-pub const fn bishop_moves(sq: usize, blockers: u64) -> u64 {
+pub const fn bishop_moves(bb: u64, blockers: u64) -> u64 {
     let empty = !blockers;
-    let bb = 1u64 << sq;
     nowe_attacks(bb, empty)
         | noea_attacks(bb, empty)
         | soea_attacks(bb, empty)
         | sowe_attacks(bb, empty)
 }
 
-pub const fn rook_moves(sq: usize, blockers: u64) -> u64 {
+pub const fn rook_moves(bb: u64, blockers: u64) -> u64 {
     let empty = !blockers;
-    let bb = 1u64 << sq;
     nort_attacks(bb, empty, 6)
         | sout_attacks(bb, empty, 6)
         | west_attacks(bb, empty, 6)
@@ -100,7 +98,7 @@ const fn populate_bishop_blockers() -> [BitBoard; Square::NUM] {
     let mut i = 0;
     let mut blockers = [BitBoard::EMPTY; Square::NUM];
     while i < Square::NUM {
-        blockers[i] = BitBoard(bishop_moves(i, 0) & NOT_EDGE);
+        blockers[i] = BitBoard(bishop_moves(1 << i, 0) & NOT_EDGE);
         i += 1;
     }
     blockers

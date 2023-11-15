@@ -6,6 +6,8 @@ pub struct BitBoard(pub u64);
 impl BitBoard {
     pub const EMPTY: BitBoard = BitBoard(0);
     pub const FULL: BitBoard = BitBoard(!0);
+    pub const NOT_A: BitBoard = BitBoard(0xfefefefefefefefe);
+    pub const NOT_H: BitBoard = BitBoard(0x7f7f7f7f7f7f7f7f);
 
     pub const fn len(&self) -> u32 {
         self.0.count_ones()
@@ -54,7 +56,7 @@ macro_rules! impl_bit_assign {
     };
 }
 
-impl_bit_assign!(BitAndAssign::bitand_assign, BitOrAssign::bitor_assign);
+impl_bit_assign!(BitAndAssign::bitand_assign, BitOrAssign::bitor_assign, BitXorAssign::bitxor_assign);
 
 impl std::fmt::Debug for BitBoard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -78,7 +80,7 @@ impl Iterator for BitBoardIterator {
     type Item = Square;
     fn next(&mut self) -> Option<Self::Item> {
         if self.bitboard > 0 {
-            let sq =  Some(Square(self.bitboard.leading_zeros() as usize));
+            let sq =  Some(Square(self.bitboard.trailing_zeros() as usize));
             self.bitboard &= self.bitboard - 1;
             return sq;
         }
