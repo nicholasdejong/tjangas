@@ -24,6 +24,19 @@ impl BitBoard {
             format!("0x{:x}", self.0)
         }
     }
+
+    pub const fn shl(&self, other: usize) -> BitBoard {
+        BitBoard(self.0 << other)
+    }
+
+    pub const fn shr(&self, other: usize) -> BitBoard {
+        BitBoard(self.0 >> other)
+    }
+
+    /// Returns zero if the bitboard is empty or full and one otherwise
+    pub const fn signum(&self) -> usize {
+        1 - (self.0.wrapping_sub(1) >> 63) as usize
+    }
 }
 
 impl std::ops::Not for BitBoard {
