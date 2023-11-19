@@ -5,4 +5,4 @@ pub mod sliders;
 pub mod square;
 pub mod nonsliders;
 pub mod piece;
-pub mod r#move;
+pub mod moves;
