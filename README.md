@@ -10,5 +10,3 @@ The project contains a `types` and `engine` package. Since I plan on reserving `
 All profiling is currently single-threaded to reduce complexity and easily identify hot spots.
 
 As can be seen from the flamegraph, `Board::danger` is responsible for more than 70% of runtime, making it a flaming hot spot. This is mainly because of the sheer amount of bit-manipulation instructions necessary to find all slider moves in parallel. After ensuring my move-generator is 100% legal, I'll consider some alternatives to calculating this mask and whether or not I can generate legal king moves without it, since that is the only purpose it is serving as of right now. 
-
-I doubt there is much performance to be gained from optiming `Board::checkmask_pinmask` as it only uses 10% of runtime. 
