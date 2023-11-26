@@ -1,29 +1,34 @@
 use types::bitboard::BitBoard;
 use types::color::Color;
 use types::nonsliders::common::{KNIGHT_MOVES, KING_MOVES, PAWN_ATTACKS};
-use types::piece::Piece;
-use types::moves::PieceMoves;
-use types::slider::Slider;
-// use types::sliders::dumb7fill::{bishop_moves, rook_moves};
+use types::piece::{Piece, PromotionPiece};
+use types::moves::{PieceMoves, Move, MoveFlags::Promotion};
 use types::sliders::magic::magic_index;
 use types::square::Square;
-use types::sliders::common::{TABLE_SIZE, ROOK_BLOCKERS, BISHOP_BLOCKERS, ROOK_MAGICS, ROOK_SHIFT, BISHOP_MAGICS, BISHOP_SHIFT, BISHOP_ATTACKS, ROOK_ATTACKS, ROOK_OFFSETS, BISHOP_OFFSETS};
+use types::sliders::common::{ROOK_BLOCKERS, BISHOP_BLOCKERS, ROOK_MAGICS, BISHOP_MAGICS, BISHOP_ATTACKS, ROOK_ATTACKS, ROOK_OFFSETS, BISHOP_OFFSETS, BISHOP_SIZE, ROOK_SIZE, BISHOP_SHIFTS, ROOK_SHIFTS};
 
 use crate::moves::squares_between;
 
 include!(concat!(env!("OUT_DIR"), "/slider_moves.rs"));
 
-pub const SLIDER_TABLE: [u64; TABLE_SIZE] = get_table();
+pub const BISHOP_TABLE: [u64; BISHOP_SIZE] = get_bishop_table();
+pub const ROOK_TABLE: [u64; ROOK_SIZE] = get_rook_table();
+
+pub const PIECES: [Piece; 6] = [Piece::King, Piece::Queen, Piece::Rook, Piece::Bishop, Piece::Knight, Piece::Pawn];
 
 #[derive(Clone, Copy, Debug)]
 pub struct Board {
-    pieces: [[BitBoard; 6]; 2], // [KQRBNP, kqrbnp]
-    all: [BitBoard; 2], // white, black
-    turn: Color,
-    castling: [(bool, bool); 2], // [(K, Q), (k, q)]
-    enpassant: BitBoard,
-    halfmoves: u8,
-    fullmoves: u16,
+    pub pieces: [[BitBoard; 6]; 2], // [KQRBNP, kqrbnp]
+    pub all: [BitBoard; 2], // white, black
+    pub turn: Color,
+    pub castling: [(bool, bool); 2], // [(K, Q), (k, q)]
+    prev_castling: [(bool, bool); 2], // store previous castling state (undo move)
+    pub enpassant: BitBoard,
+    prev_enpassant: BitBoard, // store previous enpessant (undo move)
+    pub halfmoves: u8,
+    pub fullmoves: u16,
+    pub squares: [Option<Piece>; 64], // Current position piece lookup
+    prev_square: Option<Piece>
 }
 
 struct Masks {
@@ -75,11 +80,13 @@ impl std::str::FromStr for Board {
                     'K' | 'Q' | 'R' | 'B' | 'N' | 'P' => {
                         board.pieces[0][piece_idx(char)].0 |= 1 << sq;
                         board.all[0].0 |= 1 << sq;
+                        board.squares[sq] = Some(PIECES[piece_idx(char)]);
                         sq += 1;
                     }
                     'k' | 'q' | 'r' | 'b' | 'n' | 'p' => {
                         board.pieces[1][piece_idx(char)].0 |= 1 << sq;
                         board.all[1].0 |= 1 << sq;
+                        board.squares[sq] = Some(PIECES[piece_idx(char)]);
                         sq += 1;
                     }
                     '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' => {
@@ -140,11 +147,15 @@ impl Board {
         Board {
             all: [BitBoard::EMPTY; 2],
             castling: [(false, false); 2],
+            prev_castling: [(false, false); 2],
             enpassant: BitBoard::EMPTY,
+            prev_enpassant: BitBoard::EMPTY,
             halfmoves: 0,
             fullmoves: 0,
             pieces: [[BitBoard::EMPTY; 6]; 2],
-            turn: Color::White
+            turn: Color::White,
+            squares: [None; 64],
+            prev_square: None
         }
     }
 
@@ -220,15 +231,16 @@ impl Board {
         mask |= BitBoard(KING_MOVES[enemy[0].0.trailing_zeros() as usize]);
         // bishops / queen diagonals
         for piece in enemy[1] | enemy[3] {
-            let blockers = BitBoard(BISHOP_BLOCKERS[piece.0]) & self.occupied();
-            let idx = magic_index(blockers, BISHOP_MAGICS[piece.0], BISHOP_SHIFT) + BISHOP_OFFSETS[piece.0];
-            mask |= BitBoard(SLIDER_TABLE[idx]);
+            let blockers = BitBoard(BISHOP_BLOCKERS[piece.0]) & (self.occupied() ^ self.pieces[self.turn as usize][0]);
+            let idx = magic_index(blockers, BISHOP_MAGICS[piece.0], BISHOP_SHIFTS[piece.0]) + BISHOP_OFFSETS[piece.0];
+            mask |= BitBoard(BISHOP_TABLE[idx]);
         }
         // rooks / queen orthagonals
         for piece in enemy[1] | enemy[2] {
-            let blockers = BitBoard(ROOK_BLOCKERS[piece.0]) & self.occupied();
-            let idx = magic_index(blockers, ROOK_MAGICS[piece.0], ROOK_SHIFT) + ROOK_OFFSETS[piece.0];
-            mask |= BitBoard(SLIDER_TABLE[idx]);
+            let blockers = BitBoard(ROOK_BLOCKERS[piece.0]) & (self.occupied() ^ self.pieces[self.turn as usize][0]);
+            // dbg!(piece, ROOK_BLOCKERS[piece.0], blockers);
+            let idx = magic_index(blockers, ROOK_MAGICS[piece.0], ROOK_SHIFTS[piece.0]) + ROOK_OFFSETS[piece.0];
+            mask |= BitBoard(ROOK_TABLE[idx]);
         }
         // knights
         for knight in enemy[4] {
@@ -237,7 +249,7 @@ impl Board {
         mask
     }
 
-    // FIXME: Untested, especially pawn moves
+    // TODO: Compare nodes searched for known positions to find errors
     /// Returns all moves for current position and color
     pub fn moves(&self) -> Vec<PieceMoves> {
         let Masks {checkmask, orthagonal, diagonal, en_pessant} = self.masks();
@@ -261,7 +273,7 @@ impl Board {
         moves.push(PieceMoves {
             piece: Piece::King,
             from: king,
-            moves: bb & !self.us() & danger
+            moves: bb & !self.us() & !danger
         });
 
         if (checkmask & self.them()).len() > 1 && checkmask != BitBoard::FULL {
@@ -282,11 +294,15 @@ impl Board {
         let rooks = (pieces[1] | pieces[2]) & !(orthagonal | diagonal);
         for from in rooks {
             let blockers = BitBoard(ROOK_BLOCKERS[from.0]) & self.occupied();
-            let idx = magic_index(blockers, ROOK_MAGICS[from.0], ROOK_SHIFT) + ROOK_OFFSETS[from.0];
+            let idx = magic_index(blockers, ROOK_MAGICS[from.0], ROOK_SHIFTS[from.0]) + ROOK_OFFSETS[from.0];
+            let piece = match (from.bitboard() & pieces[1]).is_empty() {
+                true => Piece::Rook,
+                false => Piece::Queen
+            };
             moves.push(PieceMoves {
-                piece: [Piece::Queen, Piece::Rook][(pieces[2] & from.bitboard()).signum()],
+                piece,
                 from,
-                moves: BitBoard(SLIDER_TABLE[idx]) & checkmask & !self.us()
+                moves: BitBoard(ROOK_TABLE[idx]) & checkmask & !self.us()
             });
         }
 
@@ -294,27 +310,31 @@ impl Board {
         let bishops = (pieces[1] | pieces[3]) & !(orthagonal | diagonal);
         for from in bishops {
             let blockers = BitBoard(BISHOP_BLOCKERS[from.0]) & self.occupied();
-            let idx = magic_index(blockers, BISHOP_MAGICS[from.0], BISHOP_SHIFT) + BISHOP_OFFSETS[from.0];
-            dbg!(idx);
-            dbg!(SLIDER_TABLE[idx], Slider::Bishop.pseudo_moves(from, blockers));
-
-            // FIXME: Fix hash collisions
-            // moves.push(PieceMoves {
-            //     piece: [Piece::Queen, Piece::Bishop][(pieces[3] & from.bitboard()).signum()],
-            //     from,
-            //     moves: BitBoard(SLIDER_TABLE[idx]) & checkmask & !self.us()
-            // });
+            let idx = magic_index(blockers, BISHOP_MAGICS[from.0], BISHOP_SHIFTS[from.0]) + BISHOP_OFFSETS[from.0];
+            let piece = match (from.bitboard() & pieces[1]).is_empty() {
+                true => Piece::Bishop,
+                false => Piece::Queen
+            };
+            moves.push(PieceMoves {
+                piece,
+                from,
+                moves: BitBoard(BISHOP_TABLE[idx]) & checkmask & !self.us()
+            });
         }
 
         // Diagonally pinned queens and bishops
         let diagonal = (pieces[1] | pieces[3]) & diagonal;
         for from in diagonal {
             let blockers = BitBoard(BISHOP_BLOCKERS[from.0]) & self.occupied();
-            let idx = magic_index(blockers, BISHOP_MAGICS[from.0], BISHOP_SHIFT) + BISHOP_OFFSETS[from.0];
+            let idx = magic_index(blockers, BISHOP_MAGICS[from.0], BISHOP_SHIFTS[from.0]) + BISHOP_OFFSETS[from.0];
+            let piece = match (from.bitboard() & pieces[1]).is_empty() {
+                true => Piece::Bishop,
+                false => Piece::Queen
+            };
             moves.push(PieceMoves {
-                piece: [Piece::Queen, Piece::Bishop][(pieces[3] & from.bitboard()).signum()],
+                piece,
                 from,
-                moves: BitBoard(SLIDER_TABLE[idx]) & checkmask & !self.us() & diagonal
+                moves: BitBoard(BISHOP_TABLE[idx]) & checkmask & !self.us() & diagonal
             });
         }
 
@@ -322,25 +342,30 @@ impl Board {
         let orthagonal = (pieces[1] | pieces[2]) & orthagonal;
         for from in orthagonal {
             let blockers = BitBoard(ROOK_BLOCKERS[from.0]) & self.occupied();
-            let idx = magic_index(blockers, ROOK_MAGICS[from.0], ROOK_SHIFT) + ROOK_OFFSETS[from.0];
+            let idx = magic_index(blockers, ROOK_MAGICS[from.0], ROOK_SHIFTS[from.0]) + ROOK_OFFSETS[from.0];
+            let piece = match (from.bitboard() & pieces[1]).is_empty() {
+                true => Piece::Rook,
+                false => Piece::Queen
+            };
             moves.push(PieceMoves {
-                piece: [Piece::Queen, Piece::Bishop][(pieces[2] & from.bitboard()).signum()],
+                piece,
                 from,
-                moves: BitBoard(SLIDER_TABLE[idx]) & checkmask & !self.us() & orthagonal
+                moves: BitBoard(ROOK_TABLE[idx]) & checkmask & !self.us() & orthagonal
             });
         }
 
-        let push_white = |x: u64| x << 8;
-        let push_black = |x: u64| x >> 8;
-        let push_forward = [push_white, push_black][color];
-        let second_rank = BitBoard([0xff00, 0xff000000000000][color]);
+        let second_rank = match self.turn {
+            Color::White => BitBoard(0xff00),
+            Color::Black => BitBoard(0xff000000000000)
+        };
 
         // Orthagonally pinned pawns
+        // A pinned pawn cannot promote
         let pawns = pieces[5] & orthagonal;
         for from in pawns {
-            let mut bb = BitBoard(push_forward(from.bitboard().0)) & !self.occupied() & orthagonal;
+            let mut bb = from.bitboard().shift_color(8, self.turn) & !self.occupied() & orthagonal;
             if !(second_rank & from.bitboard()).is_empty() && !bb.is_empty() {
-                bb |= BitBoard(push_forward(bb.0));
+                bb |= bb.shift_color(8, self.turn);
             }
             moves.push(PieceMoves {
                 piece: Piece::Pawn,
@@ -363,13 +388,13 @@ impl Board {
         let pawns = pieces[5] & !(orthagonal | diagonal);
         for from in pawns {
             // captures
-            let mut bb = BitBoard(PAWN_ATTACKS[color][from.0]) & (self.all[1 - color] | (BitBoard(push_forward(self.enpassant.0)) & !en_pessant));
+            let mut bb = BitBoard(PAWN_ATTACKS[color][from.0]) & (self.all[1 - color] | (self.enpassant.shift_color(8, self.turn) & !en_pessant));
             // single push
-            let single = BitBoard(push_forward(from.bitboard().0)) & !self.occupied();
+            let single = from.bitboard().shift_color(8, self.turn) & !self.occupied();
             bb |= single;
             // double push
             if !single.is_empty() {
-                bb |= BitBoard(push_forward(single.0)) & !self.occupied();
+                bb |= single.shift_color(8, self.turn) & !self.occupied();
             }
 
             moves.push(PieceMoves {
@@ -380,5 +405,83 @@ impl Board {
         }
 
         moves
+    }
+
+    /// Applies given move to current position
+    pub fn apply_move(&mut self, mv: &Move) {
+        let piece = mv.piece as usize;
+        let color = self.turn as usize;
+
+        self.pieces[color][piece] ^= mv.from.bitboard() | mv.to.bitboard();
+        self.all[color] ^= mv.from.bitboard() | mv.to.bitboard();
+        self.all[1 - color] &= !mv.to.bitboard();
+        if let Some(p) = self.squares[mv.to.0] {
+            // we captured a piece, but we don't know whose piece it is!
+            self.pieces[0][p as usize] &= !mv.to.bitboard();
+            self.pieces[1][p as usize] &= !mv.to.bitboard();
+        }
+        self.squares[mv.from.0] = None;
+        self.prev_square = self.squares[mv.to.0];
+        self.squares[mv.to.0] = Some(mv.piece);
+
+        match mv.piece {
+            Piece::King => {
+                self.prev_castling = self.castling;
+                self.castling[color] = (false, false);
+            }
+            Piece::Pawn => {
+                // Promotion
+                if let Some(flags) = &mv.flags {
+                    let Promotion(promotion) = flags;
+                    self.pieces[color][piece] ^= mv.to.bitboard();
+                    self.squares[mv.to.0] = match promotion {
+                        &PromotionPiece::Queen => Some(Piece::Queen),
+                        &PromotionPiece::Rook => Some(Piece::Rook),
+                        &PromotionPiece::Bishop => Some(Piece::Bishop),
+                        &PromotionPiece::Knight => Some(Piece::Knight)
+                    };
+                    self.pieces[color][*promotion as usize + 1] ^= mv.to.bitboard();
+                }
+                // En pessant
+                self.prev_enpassant = self.enpassant;
+                self.enpassant |= (mv.from.bitboard().shift_color(16, self.turn) & mv.to.bitboard()).shift_color(8, !self.turn);
+            }
+            Piece::Rook => {
+                // Kingside rook
+                self.prev_castling = self.castling;
+                if (self.pieces[color][0].shl(3) & self.pieces[color][2]).is_empty() {
+                    self.castling[color].0 = false;
+                }
+                // Queenside rook
+                if (self.pieces[color][0].shr(4) & self.pieces[color][2]).is_empty() {
+                    self.castling[color].1 = false;
+                }
+            }
+            _ => {}
+        }
+
+        self.turn = !self.turn;
+    }
+
+    /// Undo move to position
+    pub fn undo_move(&mut self, mv: &Move) {
+        let piece = mv.piece as usize;
+        let color = self.turn as usize;
+
+        self.squares[mv.to.0] = self.prev_square;
+        self.squares[mv.from.0] = Some(mv.piece);
+
+        self.castling = self.prev_castling;
+        self.enpassant = self.prev_enpassant;
+
+        if let Some(flags) = &mv.flags {
+            let Promotion(promotion) = flags;
+            self.pieces[color][piece] ^= mv.from.bitboard();
+            self.pieces[color][*promotion as usize] ^= mv.to.bitboard();
+        } else {
+            self.pieces[color][piece] ^= mv.from.bitboard() | mv.to.bitboard();
+        }
+
+        self.turn = !self.turn;
     }
 }
