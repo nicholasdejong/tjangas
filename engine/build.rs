@@ -6,21 +6,26 @@ use types::{
     square::Square,
 };
 
-fn populate_table() -> [BitBoard; TABLE_SIZE] {
-    let mut table = [BitBoard::EMPTY; TABLE_SIZE];
-    // bishop
+fn bishop_table() -> [BitBoard; BISHOP_SIZE] {
+    let mut table = [BitBoard::EMPTY; BISHOP_SIZE];
     for sq in 0..Square::NUM {
-        let blockers = Slider::Bishop.blockers(Square(sq));
+        let blockers = BitBoard(BISHOP_BLOCKERS[sq]);
+        let magic = BISHOP_MAGICS[sq];
         for subset in subsets(blockers) {
-            let idx = magic_index(subset, BISHOP_MAGICS[sq], BISHOP_SHIFT) + BISHOP_OFFSETS[sq];
+            let idx = magic_index(subset, magic, BISHOP_SHIFTS[sq]) + BISHOP_OFFSETS[sq];
             table[idx] = Slider::Bishop.pseudo_moves(Square(sq), subset);
         }
     }
-    // rook
+    table
+}
+
+fn rook_table() -> [BitBoard; ROOK_SIZE] {
+    let mut table = [BitBoard::EMPTY; ROOK_SIZE];
     for sq in 0..Square::NUM {
-        let blockers = Slider::Rook.blockers(Square(sq));
+        let blockers = BitBoard(ROOK_BLOCKERS[sq]);
+        let magic = ROOK_MAGICS[sq];
         for subset in subsets(blockers) {
-            let idx = magic_index(subset, ROOK_MAGICS[sq], ROOK_SHIFT) + ROOK_OFFSETS[sq];
+            let idx = magic_index(subset, magic, ROOK_SHIFTS[sq]) + ROOK_OFFSETS[sq];
             table[idx] = Slider::Rook.pseudo_moves(Square(sq), subset);
         }
     }
@@ -34,9 +39,11 @@ fn main() {
     fs::write(
         &dest_path,
         format!(
-            "pub const fn get_table() -> [u64; {TABLE_SIZE}] {{ {:?} }}
+            "pub const fn get_bishop_table() -> [u64; {BISHOP_SIZE}] {{ {:?} }}
+
+            pub const fn get_rook_table() -> [u64; {ROOK_SIZE}] {{ {:?} }}
         ",
-            populate_table()
+            bishop_table(), rook_table()
         ),
     )
     .unwrap();
