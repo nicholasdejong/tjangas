@@ -28,3 +28,19 @@ impl Square {
         BitBoard(1 << self.0)
     }
 }
+
+impl std::fmt::Display for Square {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        assert!(self.0 <= 63, "Invalid Square");
+        write!(f, "{}{}", ((self.0 as u8 & 7) + 97) as char, (self.0 as u8 / 8 + 49) as char)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::square::Square;
+    #[test]
+    fn test_square() {
+        assert_eq!(format!("{}", Square(42)), String::from("c6"));
+    }
+}
