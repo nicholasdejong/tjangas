@@ -1,4 +1,4 @@
-use crate::square::Square;
+use crate::{square::Square, color::Color};
 
 #[derive(Clone, Copy, PartialEq, Default)]
 pub struct BitBoard(pub u64);
@@ -36,6 +36,14 @@ impl BitBoard {
     /// Returns zero if the bitboard is empty or full and one otherwise
     pub const fn signum(&self) -> usize {
         1 - (self.0.wrapping_sub(1) >> 63) as usize
+    }
+
+    /// Shifts left if White and right otherwise
+    pub const fn shift_color(&self, bits: usize, color: Color) -> BitBoard {
+        match color {
+            Color::White => self.shl(bits),
+            Color::Black => self.shr(bits)
+        }
     }
 }
 
