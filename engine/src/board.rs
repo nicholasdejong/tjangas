@@ -1,3 +1,6 @@
+use std::error::Error;
+use thiserror::Error;
+
 use types::bitboard::BitBoard;
 use types::color::Color;
 use types::nonsliders::common::{KNIGHT_MOVES, KING_MOVES, PAWN_ATTACKS};
@@ -7,7 +10,7 @@ use types::sliders::magic::magic_index;
 use types::square::Square;
 use types::sliders::common::{ROOK_BLOCKERS, BISHOP_BLOCKERS, ROOK_MAGICS, BISHOP_MAGICS, BISHOP_ATTACKS, ROOK_ATTACKS, ROOK_OFFSETS, BISHOP_OFFSETS, BISHOP_SIZE, ROOK_SIZE, BISHOP_SHIFTS, ROOK_SHIFTS};
 
-use crate::moves::squares_between;
+use crate::helpers::{square_idx, piece_idx, squares_between};
 
 include!(concat!(env!("OUT_DIR"), "/slider_moves.rs"));
 
@@ -37,40 +40,30 @@ struct Masks {
     orthagonal: BitBoard,
     en_pessant: BitBoard // Contains mask of "pinned" enemy pawns preventing illegal en pessant
 }
-
-fn piece_idx(piece: char) -> usize {
-    match piece {
-        'k' | 'K' => 0,
-        'q' | 'Q' => 1,
-        'r' | 'R' => 2,
-        'b' | 'B' => 3,
-        'n' | 'N' => 4,
-        'p' | 'P' => 5,
-        _ => panic!("Invalid piece")
-    }
+#[derive(Debug, Error)]
+pub enum FENParseError {
+    #[error("{0} is not a valid en-passant square.")]
+    EnPassantError(String),
+    #[error("FEN has incorrect spacing.")]
+    SpacingError,
+    #[error("The FEN piece rows are invalid")]
+    RowError,
+    #[error("FEN contains invalid symbol: {0}")]
+    SymbolError(String),
 }
-
-fn square_idx<'a>(sq: &'a str) -> usize {
-    let col = sq.chars().next().expect("Invalid square");
-    let row = sq.chars().nth(1).expect("Invalid square");
-    return 8 * row as usize - 49 + col as usize;
-}
-
-#[derive(Debug)]
-pub struct FENParseError;
 
 impl std::str::FromStr for Board {
-    type Err = FENParseError;
+    type Err = Box<dyn Error>;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut board = Board::new();
 
         let mut parts = s.split_whitespace();
-        let pieces = parts.next().ok_or(FENParseError)?;
-        let color = parts.next().ok_or(FENParseError)?;
-        let castling = parts.next().ok_or(FENParseError)?;
-        let enpassant = parts.next().ok_or(FENParseError)?;
-        let halfmoves = parts.next().ok_or(FENParseError)?;
-        let fullmoves = parts.next().ok_or(FENParseError)?;
+        let pieces = parts.next().ok_or(FENParseError::SpacingError)?;
+        let color = parts.next().ok_or(FENParseError::SpacingError)?;
+        let castling = parts.next().ok_or(FENParseError::SpacingError)?;
+        let enpassant = parts.next().ok_or(FENParseError::SpacingError)?;
+        let halfmoves = parts.next().ok_or(FENParseError::SpacingError)?;
+        let fullmoves = parts.next().ok_or(FENParseError::SpacingError)?;
 
         let mut sq = 0;
         for row in pieces.rsplit("/") {
@@ -92,18 +85,18 @@ impl std::str::FromStr for Board {
                     '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' => {
                         sq += char as usize - 48;
                     }
-                    _ => return Err(FENParseError)
+                    invalid => return Err(Box::new(FENParseError::SymbolError(String::from(invalid))))
                 }
             }
             if sq - prev != 8 {
-                return Err(FENParseError);
+                return Err(Box::new(FENParseError::RowError));
             }
         }
         if sq != 64 {
-            return Err(FENParseError);
+            return Err(Box::new(FENParseError::RowError));
         }
 
-        board.turn = Color::from_str(color).map_err(|_| FENParseError)?;
+        board.turn = Color::from_str(color)?;
 
         if board.pieces[0][0] == BitBoard(16) {
             board.castling[0].0 = castling.contains("K");
@@ -115,21 +108,21 @@ impl std::str::FromStr for Board {
         }
 
         if enpassant != "-" {
-            if ['a','b','c','d','e','f','g','h'].contains(&enpassant.chars().next().ok_or(FENParseError)?) && ['1','2','3','4','5','6','7','8'].contains(&enpassant.chars().nth(1).ok_or(FENParseError)?) {
+            if ['a','b','c','d','e','f','g','h'].contains(&enpassant.chars().next().ok_or(FENParseError::EnPassantError(String::from(enpassant)))?) && ['1','2','3','4','5','6','7','8'].contains(&enpassant.chars().nth(1).ok_or(FENParseError::EnPassantError(String::from(enpassant)))?) {
                 let sq = square_idx(enpassant);
                 if sq > 47 || sq < 16 {
-                    return Err(FENParseError);
+                    return Err(Box::new(FENParseError::EnPassantError(String::from(enpassant))));
                 }
                 if (board.turn == Color::White && 1 << (sq - 8) & board.pieces[1][5].0 > 0) || (board.turn == Color::Black && 1 << (sq + 8) & board.pieces[0][5].0 > 0) {
                     board.enpassant = Square(sq).bitboard();
                 }
             } else {
-                return Err(FENParseError);
+                return Err(Box::new(FENParseError::EnPassantError(String::from(enpassant))));
             }
         }
 
-        board.halfmoves = halfmoves.parse().map_err(|_| FENParseError)?;
-        board.fullmoves = fullmoves.parse().map_err(|_| FENParseError)?;
+        board.halfmoves = halfmoves.parse()?;
+        board.fullmoves = fullmoves.parse()?;
 
         Ok(board)
     }
