@@ -1,3 +1,5 @@
+use thiserror::Error;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Color {
     #[default]
@@ -15,6 +17,8 @@ impl std::ops::Not for Color {
     }
 }
 
+#[derive(Error, Debug)]
+#[error("Invalid color provided")]
 pub struct ColorParseError;
 
 impl std::str::FromStr for Color {
