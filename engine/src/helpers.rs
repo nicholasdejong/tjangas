@@ -1,9 +1,9 @@
 use types::{square::Square, bitboard::BitBoard};
 
-pub fn square_idx<'a>(sq: &'a str) -> usize {
+pub fn square_idx(sq: &str) -> usize {
     let col = sq.chars().next().expect("Invalid square");
     let row = sq.chars().nth(1).expect("Invalid square");
-    return 8 * row as usize - 49 + col as usize;
+    8 * row as usize - 49 + col as usize
 }
 
 pub const fn piece_idx(piece: char) -> usize {

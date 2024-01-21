@@ -18,9 +18,9 @@ impl Square {
         let file = self.file() as i8 + df;
         let rank = self.rank() as i8 + dr;
         if file < 0 || rank < 0 || file > 7 || rank > 7 {
-            return *self;
+            *self
         } else {
-            return Square(rank as usize * 8 + file as usize);
+            Square(rank as usize * 8 + file as usize)
         }
     }
 

@@ -37,7 +37,7 @@ fn main() {
     let dest_path = Path::new(&out_dir).join("slider_moves.rs");
 
     fs::write(
-        &dest_path,
+        dest_path,
         format!(
             "pub const fn get_bishop_table() -> [u64; {BISHOP_SIZE}] {{ {:?} }}
 

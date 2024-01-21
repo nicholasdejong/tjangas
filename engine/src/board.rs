@@ -66,7 +66,7 @@ impl std::str::FromStr for Board {
         let fullmoves = parts.next().ok_or(FENParseError::SpacingError)?;
 
         let mut sq = 0;
-        for row in pieces.rsplit("/") {
+        for row in pieces.rsplit('/') {
             let prev = sq;
             for char in row.chars() {
                 match char {
@@ -99,18 +99,18 @@ impl std::str::FromStr for Board {
         board.turn = Color::from_str(color)?;
 
         if board.pieces[0][0] == BitBoard(16) {
-            board.castling[0].0 = castling.contains("K");
-            board.castling[0].1 = castling.contains("Q");
+            board.castling[0].0 = castling.contains('K');
+            board.castling[0].1 = castling.contains('Q');
         }
         if board.pieces[1][0] == BitBoard(0x1000000000000000) {
-            board.castling[1].0 = castling.contains("k");
-            board.castling[1].1 = castling.contains("q");
+            board.castling[1].0 = castling.contains('k');
+            board.castling[1].1 = castling.contains('q');
         }
 
         if enpassant != "-" {
             if ['a','b','c','d','e','f','g','h'].contains(&enpassant.chars().next().ok_or(FENParseError::EnPassantError(String::from(enpassant)))?) && ['1','2','3','4','5','6','7','8'].contains(&enpassant.chars().nth(1).ok_or(FENParseError::EnPassantError(String::from(enpassant)))?) {
                 let sq = square_idx(enpassant);
-                if sq > 47 || sq < 16 {
+                if !(16..=47).contains(&sq) {
                     return Err(Box::new(FENParseError::EnPassantError(String::from(enpassant))));
                 }
                 if (board.turn == Color::White && 1 << (sq - 8) & board.pieces[1][5].0 > 0) || (board.turn == Color::Black && 1 << (sq + 8) & board.pieces[0][5].0 > 0) {
@@ -180,7 +180,7 @@ impl Board {
 
         for attacker in orthagonal {
             let between = squares_between(Square(king), attacker);
-            if (between & self.occupied()).len() == 0 {
+            if (between & self.occupied()).is_empty() {
                 checkmask |= between | attacker.bitboard();
             }
             if (between & self.us()).len() == 1 {
@@ -190,10 +190,10 @@ impl Board {
 
         for attacker in diagonal {
             let between = squares_between(Square(king), attacker);
-            if (between & self.occupied()).len() == 0 {
+            if (between & self.occupied()).is_empty() {
                 checkmask |= between | attacker.bitboard();
             }
-            if (between & self.us()).len() == 1 && (between & self.them()).len() == 0 {
+            if (between & self.us()).len() == 1 && (between & self.them()).is_empty() {
                 pinmask.1 |= between | attacker.bitboard();
             }
             if (between & enemy[5]).len() == 1 {
@@ -427,11 +427,11 @@ impl Board {
                 if let Some(flags) = &mv.flags {
                     let Promotion(promotion) = flags;
                     self.pieces[color][piece] ^= mv.to.bitboard();
-                    self.squares[mv.to.0] = match promotion {
-                        &PromotionPiece::Queen => Some(Piece::Queen),
-                        &PromotionPiece::Rook => Some(Piece::Rook),
-                        &PromotionPiece::Bishop => Some(Piece::Bishop),
-                        &PromotionPiece::Knight => Some(Piece::Knight)
+                    self.squares[mv.to.0] = match *promotion {
+                        PromotionPiece::Queen => Some(Piece::Queen),
+                        PromotionPiece::Rook => Some(Piece::Rook),
+                        PromotionPiece::Bishop => Some(Piece::Bishop),
+                        PromotionPiece::Knight => Some(Piece::Knight)
                     };
                     self.pieces[color][*promotion as usize + 1] ^= mv.to.bitboard();
                 }

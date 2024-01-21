@@ -21,6 +21,11 @@ impl PieceMoves {
         }
     }
 
+    /// Specifies whether `PieceMoves` contains any moves
+    pub fn is_empty(&self) -> bool {
+        self.moves.is_empty()
+    }
+
     /// Converts `PieceMoves` to `Vec<Move>`
     pub fn convert(&self, color: Color) -> Vec<Move> {
         let seventh_rank = match color {
