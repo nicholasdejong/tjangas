@@ -12,31 +12,50 @@ fn main() {
     let depth = args[7].parse::<usize>().expect("Invalid depth");
     let mut brd = Board::from_str(fen).expect("Invalid FEN");
 
-    brd.apply_move(&Move {
-        piece: Piece::Bishop,
-        from: Square(54),
-        to: Square(45),
-        flags: None
-    });
+    // brd.apply_move(&Move {
+    //     piece: Piece::Knight,
+    //     from: Square(14),
+    //     to: Square(30),
+    //     flags: None
+    // });
 
-    fn perft(brd: &mut Board, depth: usize) -> usize {
-        if depth == 1 {
-            return brd.moves().iter().map(|m| m.len() as usize).sum();
-        }
-        let mut sum: usize = 0;
+    fn perft(brd: &Board, depth: usize) -> usize {
+        let mut brd = *brd;
+        let mut nodes: usize = 0;
         for piece_moves in brd.moves() {
+            // dbg!(&piece_moves.moves);
             for mv in piece_moves.convert(brd.turn) {
+                // println!("{:?}: {}->{}", mv.piece, mv.from, mv.to);
                 brd.apply_move(&mv);
-                let nodes = perft(brd, depth - 1);
-                println!("{mv}: {nodes}");
-                sum += nodes;
+                let children_nodes = perft_children(&mut brd, depth - 1);
+                println!("{mv}({}->{}): {}",mv.from.0, mv.to.0, children_nodes);
+                nodes += children_nodes;
                 brd.undo_move(&mv);
             }
         }
-        sum
+        fn perft_children(brd: &mut Board, depth: usize) -> usize {
+            if depth == 1 {
+                return brd.moves().iter().map(|m| m.len() as usize).sum();
+            } else 
+            if depth == 0 {
+                return 1;
+            }
+            let mut sum: usize = 0;
+            for piece_moves in brd.moves() {
+                for mv in piece_moves.convert(brd.turn) {
+                    brd.apply_move(&mv);
+                    let nodes = perft_children(brd, depth - 1);
+                    sum += nodes;
+                    brd.undo_move(&mv);
+                }
+            }
+            sum
+        }
+        // perft(&mut brd, depth)
+        nodes
     }
 
-    let nodes = perft(&mut brd, depth);
+    let nodes = perft(&brd, depth);
     println!("\nNodes searched: {nodes}");
 
 

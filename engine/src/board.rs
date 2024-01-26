@@ -169,6 +169,7 @@ impl Board {
     fn masks(&self) -> Masks {
         let color = self.turn as usize;
         let king = self.pieces[color][0].0.trailing_zeros() as usize;
+        // assert!(king < 64, "{:?}", self.pieces[color][0]);
         let enemy = self.pieces[1 - color];
 
         let diagonal = BitBoard(BISHOP_ATTACKS[king]) & (enemy[1] | enemy[3]);
@@ -400,6 +401,7 @@ impl Board {
         moves
     }
 
+    // I believe the problem is that the king is being captured and thus no longer exists
     /// Applies given move to current position
     pub fn apply_move(&mut self, mv: &Move) {
         let piece = mv.piece as usize;
@@ -463,16 +465,18 @@ impl Board {
 
         self.squares[mv.to.0] = self.prev_square;
         self.squares[mv.from.0] = Some(mv.piece);
+        self.all[1 - color] ^= mv.from.bitboard() | mv.to.bitboard();
+        self.all[color] |= if self.prev_square.is_some() { mv.to.bitboard() } else { BitBoard::EMPTY };
 
         self.castling = self.prev_castling;
         self.enpassant = self.prev_enpassant;
 
         if let Some(flags) = &mv.flags {
             let Promotion(promotion) = flags;
-            self.pieces[color][piece] ^= mv.from.bitboard();
-            self.pieces[color][*promotion as usize] ^= mv.to.bitboard();
+            self.pieces[1 - color][piece] ^= mv.from.bitboard();
+            self.pieces[1 - color][*promotion as usize] ^= mv.to.bitboard();
         } else {
-            self.pieces[color][piece] ^= mv.from.bitboard() | mv.to.bitboard();
+            self.pieces[1 - color][piece] ^= mv.from.bitboard() | mv.to.bitboard();
         }
 
         self.turn = !self.turn;

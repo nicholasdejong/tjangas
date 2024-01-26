@@ -28,13 +28,21 @@ impl PieceMoves {
 
     /// Converts `PieceMoves` to `Vec<Move>`
     pub fn convert(&self, color: Color) -> Vec<Move> {
-        let seventh_rank = match color {
-            Color::White => BitBoard(0xff000000000000),
-            Color::Black => BitBoard(0xff00)
+        let eighth_rank = match color {
+            Color::White => BitBoard(0xff00000000000000),
+            Color::Black => BitBoard(0xff)
         };
         let mut moves = vec![];
         if self.piece == Piece::Pawn {
-            for sq in self.moves & seventh_rank {
+            for sq in self.moves & !eighth_rank {
+                moves.push(Move {
+                    piece: self.piece,
+                    from: self.from,
+                    to: sq,
+                    flags: None
+                })
+            }
+            for sq in self.moves & eighth_rank {
                 moves.push(Move {
                     piece: self.piece,
                     from: self.from,
