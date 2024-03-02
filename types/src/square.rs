@@ -1,4 +1,6 @@
 use crate::bitboard::BitBoard;
+use std::error::Error;
+use thiserror::Error;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Square(pub usize);
@@ -33,6 +35,38 @@ impl std::fmt::Display for Square {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         assert!(self.0 <= 63, "Invalid Square");
         write!(f, "{}{}", ((self.0 as u8 & 7) + 97) as char, (self.0 as u8 / 8 + 49) as char)
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum SquareParseError {
+    #[error("Expected 2 characters, found {0}.")]
+    CharLenError(usize),
+    #[error("The square file is out of bounds.")]
+    FileError,
+    #[error("The square rank is out of bounds.")]
+    RankError,
+}
+
+impl std::str::FromStr for Square {
+    type Err = Box<dyn Error>;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() != 2 {
+            return Err(Box::new(SquareParseError::CharLenError(s.len())));
+        }
+        let mut chars = s.chars();
+        let file = chars.next().ok_or(SquareParseError::FileError)?.to_digit(10).ok_or(SquareParseError::FileError)?;
+        let rank = chars.next().ok_or(SquareParseError::RankError)?.to_digit(10).ok_or(SquareParseError::RankError)?;
+
+        if file < 97 || file > 104 {
+            return Err(Box::new(SquareParseError::FileError));
+        }
+        if rank == 0 || rank > 8 {
+            return Err(Box::new(SquareParseError::RankError));
+        }
+        let file = file - 97;
+        let rank = rank - 1;
+        Ok(Square(rank as usize * 8 + file as usize))
     }
 }
 
