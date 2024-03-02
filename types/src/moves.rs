@@ -1,5 +1,6 @@
 use crate::{piece::{Piece, PromotionPiece}, square::Square, bitboard::BitBoard, color::Color};
 
+#[derive(Clone, Copy)]
 pub enum MoveFlags {
     Promotion(PromotionPiece)
 }
@@ -82,6 +83,7 @@ impl PieceMoves {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Move {
     pub piece: Piece,
     pub from: Square,
