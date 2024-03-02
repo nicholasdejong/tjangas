@@ -85,6 +85,19 @@ impl std::fmt::Debug for BitBoard {
     }
 }
 
+impl std::fmt::Display for BitBoard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mask = BitBoard(0xff << 56); // Eighth rank
+        let mut str = String::new();
+        for i in 0..8 {
+            let rank = (self.0 & mask.shr(8 * i).0) >> 8 * (7 - i);
+            let rank_str = format!("{rank:0>8b}\n").chars().rev().collect::<String>().replace("0", ".").replace("1", "x");
+            str += rank_str.as_str();
+        }
+        write!(f, "{str}")
+    }
+}
+
 pub struct BitBoardIterator {
     bitboard: u64
 }
