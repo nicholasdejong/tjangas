@@ -215,7 +215,7 @@ impl Board {
     }
 
     /// Returns mask containing all squares attacked by enemy pieces
-    fn danger(&self) -> BitBoard {
+    pub fn danger(&self) -> BitBoard {
         let enemy_color = 1 - self.turn as usize;
         let enemy = self.pieces[enemy_color];
 
@@ -401,9 +401,9 @@ impl Board {
         moves
     }
 
-    // I believe the problem is that the king is being captured and thus no longer exists
     /// Applies given move to current position
     pub fn apply_move(&mut self, mv: &Move) {
+        // println!("{}{}", mv.from, mv.to);
         let piece = mv.piece as usize;
         let color = self.turn as usize;
 
@@ -428,7 +428,7 @@ impl Board {
                 // Promotion
                 if let Some(flags) = &mv.flags {
                     let Promotion(promotion) = flags;
-                    self.pieces[color][piece] ^= mv.to.bitboard();
+                    self.pieces[color][piece] ^= mv.from.bitboard();
                     self.squares[mv.to.0] = match *promotion {
                         PromotionPiece::Queen => Some(Piece::Queen),
                         PromotionPiece::Rook => Some(Piece::Rook),
@@ -456,9 +456,10 @@ impl Board {
         }
 
         self.turn = !self.turn;
+        assert!(!self.pieces[0][0].is_empty(), "white king captured!");
     }
 
-    /// Undo move to position
+    /// undo move to position
     pub fn undo_move(&mut self, mv: &Move) {
         let piece = mv.piece as usize;
         let color = self.turn as usize;
